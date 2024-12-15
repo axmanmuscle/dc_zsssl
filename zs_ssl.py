@@ -36,6 +36,22 @@ def make_masks(n):
 
   return np.zeros(n)
 
+def model(data):
+  """
+  this might need to be a class, tbd
+  definitely needs to be something pytorch understands to do autograd
+  """
+
+  # first IFT the data to get back to image space
+  imdata = np.ifft2(data)
+
+  # apply the unet?
+  out = unet(imdata)
+
+  # fft back to k-space
+  kdata = np.fft2(out)
+
+  return kdata
 
 def main():
   """
