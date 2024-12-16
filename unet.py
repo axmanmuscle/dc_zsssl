@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class conv_block(nn.Module):
     def __init__(self, in_c, out_c):
@@ -92,6 +93,31 @@ class build_unet(nn.Module):
         outputs = self.outputs(d4)
 
         return outputs
+
+class zs_model(nn.Module):
+    """
+    may need to add something like dimensions in here? so we can build the unet at the appropriate size.
+    """
+    def __init__(self):
+        super().__init__()
+
+        self.unet = build_unet()
+
+    def forward(self, inputs):
+        sImg = inputs.size() # this is k-space samples?
+
+        # take IFT to make it image space
+        i2 = np.ifft2(inputs) # this should probably be a torch ifft
+
+        # run unet
+        i3 = self.unet(i2)
+
+        # FT back to k-space
+        i4 = np.fft2(i3)
+
+        return i4
+    
+
 
 if __name__ == "__main__":
     #x = torch.randn((2, 3, 512, 512))

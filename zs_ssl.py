@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import scipy.io as sio
 import numpy as np
+from unet import zs_model
 
 def train(data_loader, model, loss_fun, optimizer, device = torch.device('cpu')):
   """
@@ -36,23 +37,6 @@ def make_masks(n):
 
   return np.zeros(n)
 
-def model(data):
-  """
-  this might need to be a class, tbd
-  definitely needs to be something pytorch understands to do autograd
-  """
-
-  # first IFT the data to get back to image space
-  imdata = np.ifft2(data)
-
-  # apply the unet?
-  out = unet(imdata)
-
-  # fft back to k-space
-  kdata = np.fft2(out)
-
-  return kdata
-
 def main():
   """
   here's the steps
@@ -69,6 +53,8 @@ def main():
   """
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+  network = zs_model()
 
   return 0
 
