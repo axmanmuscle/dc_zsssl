@@ -97,3 +97,9 @@ def tensor_to_complex_np(data: torch.Tensor) -> np.ndarray:
         Complex numpy version of data.
     """
     return torch.view_as_complex(data).numpy()
+
+def np_to_complex(data: np.ndarray) -> np.ndarray:
+    """
+    converts a [N, M, 2] real array to [N, M] complex
+    """
+    return data[..., 0] + 1j*data[..., 1]

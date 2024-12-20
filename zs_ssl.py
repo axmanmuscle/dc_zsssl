@@ -6,6 +6,7 @@ import torch.nn as nn
 import scipy.io as sio
 import numpy as np
 from unet import zs_model
+import math_utils
 
 def train(data_loader, model, loss_fun, optimizer, device = torch.device('cpu')):
   """
@@ -52,9 +53,16 @@ def main():
     - once this is trained reconstruct the image
   """
 
+  rng = np.random.default_rng()
+  sImg = np.array([64, 64, 2])
+  testImg = rng.random(sImg)
+  testImgCmplx = math_utils.np_to_complex(testImg)
+
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
   network = zs_model()
+
+  network(testImgCmplx)
 
   return 0
 

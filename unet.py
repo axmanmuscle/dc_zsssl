@@ -104,7 +104,7 @@ class zs_model(nn.Module):
         self.unet = build_unet()
 
     def forward(self, inputs):
-        sImg = inputs.size() # this is k-space samples?
+        sImg = inputs.size # this is k-space samples?
 
         # take IFT to make it image space
         i2 = np.ifft2(inputs) # this should probably be a torch ifft
