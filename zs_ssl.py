@@ -7,13 +7,26 @@ import scipy.io as sio
 import numpy as np
 from unet import zs_model
 import math_utils
+import glob
+import h5py
+import matplotlib.pyplot as plt
 
-def train(data_loader, model, loss_fun, optimizer, device = torch.device('cpu')):
+def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
   """
   run one training step
+  we aren't changing the data mask so there is no need for a dataloader?
+  """
+  """
+  todo:
+    - the data in is undersampled k-space. split into train and validation (oh this should be done earlier)
+    - the training data is split out and run through the model. compare loss
   """
 
-  for idx, data in enumerate(data_loader):
+  model.train()
+
+  avg_train_loss = 0
+
+  for idx in range(num_epochs):
     data = data.to(device)
 
     out = model(data) # inputs on this line will depend on how the model is set up
@@ -30,13 +43,36 @@ def load_data(fname):
 
   return x
 
-def make_masks(n):
+def make_masks(sImg, rng, sampFrac = 0.4):
   """
   i don't actually know what I should do here
   maybe a random subset of columns?
+
+  yeah lets do a subset of columns and some amount chosen in the middle
+  take the 10% of middle columns and some fraction of the rest
+
+  INPUTS:
+    sImg - dimensions of image
+    rng - numpy random number generator
   """
 
-  return np.zeros(n)
+  numCols = sImg[1]
+
+  center = numCols // 2
+
+  fivePer = round(0.05 * numCols)
+  lowerB = center - fivePer
+  upperB = center + fivePer
+
+  colRange = [i for i in range(numCols) if i < lowerB or i > upperB]
+
+  colsChosen = rng.choice(colRange, round(sampFrac*len(colRange))) 
+
+  mask = np.zeros(sImg)
+  mask[:, colsChosen] = 1
+
+
+  return mask
 
 def main():
   """
@@ -53,7 +89,21 @@ def main():
     - once this is trained reconstruct the image
   """
 
-  rng = np.random.default_rng()
+  """
+  todo:
+    - the data in is undersampled k-space. split into train and validation (oh this should be done earlier)
+    - the training data is split out and run through the model. compare loss
+  """
+
+  data_dir = '/Volumes/T7 Shield/FastMRI/knee/singlecoil_train'
+  fnames = glob.glob(data_dir +'/*')
+
+  slice_num = 10
+  with h5py.File(fnames[10], 'r') as hf:
+    ks = hf['kspace'][slice_num]
+  
+
+  rng = np.random.default_rng(seed=12202024)
   sImg = np.array([64, 64, 2])
   testImg = rng.random(sImg)
   testImgCmplx = math_utils.np_to_complex(testImg)
@@ -67,4 +117,11 @@ def main():
   return 0
 
 if __name__ == "__main__":
-  main()
+  rng = np.random.default_rng(2024)
+  sImg = [640, 320]
+  m = make_masks(sImg, rng, 0.4)
+  plt.imshow(m, cmap='grey')
+  plt.show()
+
+
+  # main()
