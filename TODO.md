@@ -9,3 +9,17 @@ and compare the loss against the training points?
 
 This would keep the training "mask" fixed and remove having to use a data loader i believe
 
+Okay so we have a way to generate a mask. The way forward is:
+
+ - read in data file
+ - apply mask (this is now our "undersampled k-space")
+ - select 85% of the samples as train and the remaining 15% as validation
+ - for i in epochs:
+   - take the training data and apply the model
+   - calculate the loss
+   - update parameters
+   - calculate validation loss
+   - break is num epochs reached or validation loss doesnt change in long enough
+
+Seems okay?
+
