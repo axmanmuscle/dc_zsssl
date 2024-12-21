@@ -38,16 +38,16 @@ if __name__ == "__main__":
     main()
 
 
-def train(data_loader, model, loss_fun, optimizer, device = torch.device('cpu')):
-  """
-  run one training step
+# def train(data_loader, model, loss_fun, optimizer, device = torch.device('cpu')):
+#   """
+#   run one training step
 
-  junkyard for now
-  """
+#   junkyard for now
+#   """
 
-  for idx, data in enumerate(data_loader):
-    data = data.to(device)
+#   for idx, data in enumerate(data_loader):
+#     data = data.to(device)
 
-    out = model(data) # inputs on this line will depend on how the model is set up
-    # this is an interesting point because "model" will need to encompass the fourier transforms
-    train_loss = loss_fun(out, gt) # gt needs to come from the data loader?
+#     out = model(data) # inputs on this line will depend on how the model is set up
+#     # this is an interesting point because "model" will need to encompass the fourier transforms
+#     train_loss = loss_fun(out, gt) # gt needs to come from the data loader?

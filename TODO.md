@@ -23,3 +23,6 @@ Okay so we have a way to generate a mask. The way forward is:
 
 Seems okay?
 
+## 12/20
+Need to split complex -> float x2 for the FFT and then backwards. at the unet it needs to be float x2
+

@@ -10,6 +10,7 @@ import math_utils
 import glob
 import h5py
 import matplotlib.pyplot as plt
+from junkyard import view_im
 
 def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
   """
@@ -25,25 +26,18 @@ def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.devi
   model.train()
 
   avg_train_loss = 0
+  data = data.to(device)
 
   for idx in range(num_epochs):
-    data = data.to(device)
-
     out = model(data) # inputs on this line will depend on how the model is set up
     # this is an interesting point because "model" will need to encompass the fourier transforms
-    train_loss = loss_fun(out, gt) # gt needs to come from the data loader?
+    train_loss = loss_fun(out, data) # gt needs to come from the data loader?
 
-def load_data(fname):
-  """
-  this should just load the data into a matrix
-  I'm making this a function in case there's any preprocessing we want to do on the data
-  """
+    optimizer.zero_grad()
+    train_loss.backward()
+    optimizer.step()
 
-  x = sio.loadmat(fname)
-
-  return x
-
-def make_masks(sImg, rng, sampFrac = 0.4):
+def make_masks(sImg, rng, samp_frac, train_frac):
   """
   i don't actually know what I should do here
   maybe a random subset of columns?
@@ -66,13 +60,28 @@ def make_masks(sImg, rng, sampFrac = 0.4):
 
   colRange = [i for i in range(numCols) if i < lowerB or i > upperB]
 
-  colsChosen = rng.choice(colRange, round(sampFrac*len(colRange))) 
+  colsChosen = rng.choice(colRange, round(samp_frac*len(colRange)), replace=False) 
 
   mask = np.zeros(sImg)
   mask[:, colsChosen] = 1
+  mask[:, lowerB:upperB] = 1
 
+  mask_indices = np.where(mask == 1)
+  num_samples = len(mask_indices[0])
 
-  return mask
+  mask_rows = mask_indices[0]
+  mask_cols = mask_indices[1]
+
+  train_num = round(train_frac * num_samples)
+  train_chosen = rng.choice(num_samples, train_num, replace=False)
+
+  train_mask = np.zeros(sImg)
+  for idx in range(train_num):
+    mask_idx = train_chosen[idx]
+    train_mask[mask_rows[mask_idx], mask_cols[mask_idx]] = 1
+  
+
+  return mask, train_mask
 
 def main():
   """
@@ -98,30 +107,50 @@ def main():
   data_dir = '/Volumes/T7 Shield/FastMRI/knee/singlecoil_train'
   fnames = glob.glob(data_dir +'/*')
 
-  slice_num = 10
-  with h5py.File(fnames[10], 'r') as hf:
+  file_num = 10
+  slice_num = 18
+  with h5py.File(fnames[file_num], 'r') as hf:
     ks = hf['kspace'][slice_num]
   
-
+  samp_frac = 0.4
+  train_frac = 0.85
   rng = np.random.default_rng(seed=12202024)
-  sImg = np.array([64, 64, 2])
-  testImg = rng.random(sImg)
-  testImgCmplx = math_utils.np_to_complex(testImg)
+  sImg = ks.shape
+
+  data_mask, training_mask = make_masks(sImg, rng, samp_frac, train_frac)
+
+  sub_kspace = data_mask * ks
+  training_kspace = training_mask * ks
+  val_mask = data_mask - training_mask
+  val_kspace = val_mask * ks
+
+  sub_kspace = torch.tensor(sub_kspace)
+  training_kspace = torch.tensor(training_kspace)
+  val_kspace = torch.tensor(val_kspace)
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-  network = zs_model()
+  loss_fn = lambda x, y: np.linalg.norm(x - y, 'fro')
 
-  network(testImgCmplx)
+  model = zs_model()
+  optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
+
+  train(training_kspace, model, loss_fn, optimizer, 50, device)
+
+
+  # view_im(ks)
+  # view_im(sub_kspace)
+  # view_im(training_kspace)
+  # view_im(val_kspace)
 
   return 0
 
 if __name__ == "__main__":
-  rng = np.random.default_rng(2024)
-  sImg = [640, 320]
-  m = make_masks(sImg, rng, 0.4)
-  plt.imshow(m, cmap='grey')
-  plt.show()
+  # rng = np.random.default_rng(2024)
+  # sImg = [640, 320]
+  # m, tm = make_masks(sImg, rng, 0.4, 0.85)
+  # plt.imshow(tm, cmap='grey')
+  # plt.show()
 
 
-  # main()
+  main()

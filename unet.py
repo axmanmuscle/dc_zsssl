@@ -103,25 +103,28 @@ class zs_model(nn.Module):
 
         self.unet = build_unet()
 
-    def forward(self, inputs):
-        sImg = inputs.size # this is k-space samples?
+    def forward(self, kspace):
 
         # take IFT to make it image space
-        i2 = np.ifft2(inputs) # this should probably be a torch ifft
+        im_space = torch.fft.ifftshift( torch.fft.ifftn( torch.fft.fftshift( kspace ) ) )
 
         # run unet
-        i3 = self.unet(i2)
+        post_unet = self.unet(im_space)
 
         # FT back to k-space
-        i4 = np.fft2(i3)
+        kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.fiftshift( post_unet ) ) )
 
-        return i4
+        return kspace_out
     
 
 
 if __name__ == "__main__":
     #x = torch.randn((2, 3, 512, 512))
-    x = torch.randn((1, 1, 256, 256))
+    x = torch.randn((1, 1, 640, 320))
     f = build_unet()
     y = f(x)
     print(y.shape)
+
+    f2 = zs_model()
+    y2 = f2(x)
+    print(y2.shape)
