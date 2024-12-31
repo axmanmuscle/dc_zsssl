@@ -10,11 +10,14 @@ def kspace_to_imspace(kspace):
 
     return im_space
 
-def view_im(kspace):
+def view_im(kspace, title=''):
 
     im_space = kspace_to_imspace(kspace)
 
     plt.imshow( np.abs( im_space ), cmap='grey')
+
+    if len(title) > 0:
+        plt.title(title)
     plt.show()
 
 def main():

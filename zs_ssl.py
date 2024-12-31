@@ -12,11 +12,7 @@ import h5py
 import matplotlib.pyplot as plt
 from junkyard import view_im
 
-def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
-  """
-  run one training step
-  we aren't changing the data mask so there is no need for a dataloader?
-  """
+def training_loop(training_data, val_data, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
   """
   todo:
     - the data in is undersampled k-space. split into train and validation (oh this should be done earlier)
@@ -26,15 +22,21 @@ def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.devi
   model.train()
 
   avg_train_loss = 0
-  data = data.to(device)
+  training_data = training_data.to(device)
+  val_data = val_data.to(device)
 
   tl_ar = []
+  vl_ar = []
 
   for idx in range(num_epochs):
-    out = model(data) # inputs on this line will depend on how the model is set up
+    out = model(training_data) # inputs on this line will depend on how the model is set up
     # this is an interesting point because "model" will need to encompass the fourier transforms
-    train_loss = loss_fun(out, data) # gt needs to come from the data loader?
+    train_loss = loss_fun(out, training_data) # gt needs to come from the data loader?
+    val_out = model(val_data)
+    val_loss = loss_fun(val_out, val_data)
+
     tl_ar.append(train_loss.detach().numpy())
+    vl_ar.append(val_loss.detach().numpy())
 
     optimizer.zero_grad()
     train_loss.backward()
@@ -43,6 +45,8 @@ def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.devi
     print(f'on step {idx} of {num_epochs} with tl {train_loss}')
 
   plt.plot(tl_ar)
+  plt.plot(vl_ar)
+  plt.legend(['training loss', 'val loss'])
   plt.show()
 
 def make_masks(sImg, rng, samp_frac, train_frac):
@@ -117,13 +121,16 @@ def main():
   fnames = glob.glob(data_dir +'/*')
 
   file_num = 1
-  slice_num = 10
+  slice_num = 18
   with h5py.File(fnames[file_num], 'r') as hf:
     ks = hf['kspace'][slice_num]
   
+  mval = np.max(np.abs(ks))
+  ks /= mval
   samp_frac = 0.4
   train_frac = 0.85
   rng = np.random.default_rng(seed=12202024)
+  torch.manual_seed(12202024)
   sImg = ks.shape
 
   data_mask, training_mask = make_masks(sImg, rng, samp_frac, train_frac)
@@ -139,15 +146,19 @@ def main():
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+  view_im(sub_kspace, 'undersampled k-space')
+  view_im(ks, 'fully sampled image')
+
   # loss_fn = lambda x, y: np.linalg.norm(x - y, 'fro')
-  loss_fn = nn.MSELoss()
+  # loss_fn = nn.MSELoss()
 
   model = zs_model()
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
   training_kspace = training_kspace[None, None, :, :]
+  val_kspace = val_kspace[None, None, :, :]
 
-  train(training_kspace, model, math_utils.complex_mse_loss, optimizer, 75, device)
+  training_loop(training_kspace, val_kspace, model, math_utils.complex_mse_loss, optimizer, 200, device)
 
 
   # view_im(ks)
