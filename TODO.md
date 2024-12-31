@@ -26,3 +26,6 @@ Seems okay?
 ## 12/20
 Need to split complex -> float x2 for the FFT and then backwards. at the unet it needs to be float x2
 
+## 12/30
+Need to write it so the sizes are consistent through the FFT and the unet. seems like the unet is having some issues
+

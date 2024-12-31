@@ -108,23 +108,37 @@ class zs_model(nn.Module):
         # take IFT to make it image space
         im_space = torch.fft.ifftshift( torch.fft.ifftn( torch.fft.fftshift( kspace ) ) )
 
+        im_space_r = torch.view_as_real(im_space)
+        n = im_space_r.shape[-3]
+        im_space_stack = torch.cat((im_space_r[..., 0], im_space_r[..., 1]), dim=2)
+
         # run unet
-        post_unet = self.unet(im_space)
+        post_unet = self.unet(im_space_stack)
+
+        # split back into real/imaginary
+
+        post_unet_r = post_unet[..., 1:n+1, :]
+        post_unet_im = post_unet[..., n:, :]
+
+        post_unet = torch.stack((post_unet_r, post_unet_im), dim=-1)
+        post_unet = torch.view_as_complex(post_unet)
 
         # FT back to k-space
-        kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.fiftshift( post_unet ) ) )
+        kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.ifftshift( post_unet ) ) )
 
         return kspace_out
     
 
 
 if __name__ == "__main__":
-    #x = torch.randn((2, 3, 512, 512))
-    x = torch.randn((1, 1, 640, 320))
-    f = build_unet()
-    y = f(x)
-    print(y.shape)
+    # x = torch.randn((2, 3, 512, 512))
+    x = torch.randn((1, 1, 640, 320)) + 1j*torch.randn((1,1,640,320))
+    print(x.dtype)
+    # f = build_unet()
+    # y = f(x)
+    # print(y.shape)
 
     f2 = zs_model()
     y2 = f2(x)
     print(y2.shape)
+    print(y2.dtype)

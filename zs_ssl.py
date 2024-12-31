@@ -28,14 +28,22 @@ def train(data, model, loss_fun, optimizer, num_epochs = 50, device = torch.devi
   avg_train_loss = 0
   data = data.to(device)
 
+  tl_ar = []
+
   for idx in range(num_epochs):
     out = model(data) # inputs on this line will depend on how the model is set up
     # this is an interesting point because "model" will need to encompass the fourier transforms
     train_loss = loss_fun(out, data) # gt needs to come from the data loader?
+    tl_ar.append(train_loss.detach().numpy())
 
     optimizer.zero_grad()
     train_loss.backward()
     optimizer.step()
+
+    print(f'on step {idx} of {num_epochs} with tl {train_loss}')
+
+  plt.plot(tl_ar)
+  plt.show()
 
 def make_masks(sImg, rng, samp_frac, train_frac):
   """
@@ -81,7 +89,7 @@ def make_masks(sImg, rng, samp_frac, train_frac):
     train_mask[mask_rows[mask_idx], mask_cols[mask_idx]] = 1
   
 
-  return mask, train_mask
+  return mask.astype(np.float32), train_mask.astype(np.float32) # convert to 32bit float to prevent uptyping
 
 def main():
   """
@@ -104,11 +112,12 @@ def main():
     - the training data is split out and run through the model. compare loss
   """
 
-  data_dir = '/Volumes/T7 Shield/FastMRI/knee/singlecoil_train'
+  # data_dir = '/Volumes/T7 Shield/FastMRI/knee/singlecoil_train'
+  data_dir = '/Users/alex/Desktop/fastMRI/knee_singlecoil_train'
   fnames = glob.glob(data_dir +'/*')
 
-  file_num = 10
-  slice_num = 18
+  file_num = 1
+  slice_num = 10
   with h5py.File(fnames[file_num], 'r') as hf:
     ks = hf['kspace'][slice_num]
   
@@ -130,12 +139,15 @@ def main():
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-  loss_fn = lambda x, y: np.linalg.norm(x - y, 'fro')
+  # loss_fn = lambda x, y: np.linalg.norm(x - y, 'fro')
+  loss_fn = nn.MSELoss()
 
   model = zs_model()
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
-  train(training_kspace, model, loss_fn, optimizer, 50, device)
+  training_kspace = training_kspace[None, None, :, :]
+
+  train(training_kspace, model, math_utils.complex_mse_loss, optimizer, 75, device)
 
 
   # view_im(ks)
