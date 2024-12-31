@@ -29,3 +29,6 @@ Need to split complex -> float x2 for the FFT and then backwards. at the unet it
 ## 12/30
 Need to write it so the sizes are consistent through the FFT and the unet. seems like the unet is having some issues
 
+## 12/30 (2)
+Need to add checkpointing to save the model. Need to add calculating validation loss and finding a good cutoff. Need to evaluate reconstruction accuracy.
+
