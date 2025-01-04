@@ -104,5 +104,7 @@ def np_to_complex(data: np.ndarray) -> np.ndarray:
     """
     return data[..., 0] + 1j*data[..., 1]
 
-def complex_mse_loss(output, target):
-    return torch.abs((0.5*(output - target)**2).mean(dtype=torch.complex64))
+def complex_mse_loss(output, target, mask):
+    om = output * mask
+    tm = target * mask
+    return torch.abs((0.5*(om - tm)**2).mean(dtype=torch.complex64))

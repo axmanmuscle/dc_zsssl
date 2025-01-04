@@ -32,3 +32,15 @@ Need to write it so the sizes are consistent through the FFT and the unet. seems
 ## 12/30 (2)
 Need to add checkpointing to save the model. Need to add calculating validation loss and finding a good cutoff. Need to evaluate reconstruction accuracy.
 
+## 1/3
+Still need to add checkpointing.
+
+More importantly - into the training method we need to hand the full set of training data and the validation data along with the loss mask. The training data is then split into the actual training data and the loss data.
+
+A training step is then:
+  - Take the actual training data (the given training data minus the loss data)
+  - Run this through the model
+  - Compute loss between this and the loss data at the loss mask
+  - Run the model again on all of the training data (the previous training data and the loss data)
+  - Compute loss between this and the validation data at the validation mask
+
