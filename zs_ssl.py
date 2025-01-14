@@ -32,7 +32,7 @@ def training_loop(training_data, val_data, all_training_data, loss_mask, val_mas
   for idx in range(num_epochs):
     out = model(training_data) # inputs on this line will depend on how the model is set up
     # this is an interesting point because "model" will need to encompass the fourier transforms
-    train_loss = loss_fun(out, training_data, loss_mask) # gt needs to come from the data loader?
+    train_loss = loss_fun(out, all_training_data, loss_mask) # gt needs to come from the data loader?
     val_out = model(all_training_data)
     val_loss = loss_fun(val_out, val_data, val_mask)
 
@@ -226,7 +226,9 @@ def main():
   loss_mask = torch.tensor(loss_mask)
   val_mask = torch.tensor(val_mask)
 
-  training_loop(training_kspace, val_kspace, all_training_kspace, loss_mask, val_mask, model, math_utils.complex_mse_loss, optimizer, 75, device)
+  # plt.imshow(loss_mask, cmap='gray')
+  # plt.show()
+  training_loop(training_kspace, val_kspace, all_training_kspace, loss_mask, val_mask, model, math_utils.mixed_loss, optimizer, 40, device)
 
 
   # view_im(ks)

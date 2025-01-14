@@ -108,3 +108,9 @@ def complex_mse_loss(output, target, mask):
     om = output * mask
     tm = target * mask
     return torch.abs((0.5*(om - tm)**2).mean(dtype=torch.complex64))
+
+def mixed_loss(output, target, mask):
+    om = output * mask
+    tm = target * mask
+    n = torch.norm(om - tm) / torch.norm(tm) + torch.norm(om - tm, 1) / torch.norm(tm, 1)
+    return n
