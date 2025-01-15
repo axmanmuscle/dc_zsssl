@@ -43,7 +43,8 @@ def training_loop(training_data, val_data, all_training_data, loss_mask, val_mas
     train_loss.backward()
     optimizer.step()
 
-    print(f'on step {idx} of {num_epochs} with tl {round(float(train_loss.data), 3)} and vl {round(float(val_loss.data), 3)}')
+    print('on step {} of {} with tl {:.2E} and vl {:.2E}'.format(idx+1, num_epochs, float(train_loss.data), float(val_loss.data)))
+    # print(f'on step {idx} of {num_epochs} with tl {round(float(train_loss.data), 3)} and vl {round(float(val_loss.data), 3)}')
 
   plt.plot(tl_ar)
   plt.plot(vl_ar)
@@ -52,6 +53,21 @@ def training_loop(training_data, val_data, all_training_data, loss_mask, val_mas
 
   out = model(training_data)
   view_im(np.squeeze(out.detach().numpy()))
+
+def undersample_kspace(sImg, rng, samp_frac):
+  """
+  here we should do the generic undersampling of k-space to go from a fully sampled image to whatever
+  undersampling pattern we want?
+  """
+
+  return 0
+
+def training_val_split(mask, training_frac):
+  """
+  here we'll split the undersampling mask into the training and validation portions
+  in the ZS-SSL paper this is splitting omega into Gamma and Omega\Gamma
+  """
+  return 0
 
 def make_masks(sImg, rng, samp_frac, train_frac, loss_frac = 0.3):
   """
@@ -193,6 +209,10 @@ def main():
   torch.manual_seed(12202024)
   sImg = ks.shape
 
+  ## refactor: here we'll make a function to subsample k-space, a function to split into training and validation
+  ## and then somewhere generate a bunch of different training/loss masks!
+
+  k = 20 # not an informed choice
   data_mask, training_mask, loss_mask = make_masks(sImg, rng, samp_frac, train_frac)
 
   train_split = training_mask - loss_mask
@@ -228,7 +248,7 @@ def main():
 
   # plt.imshow(loss_mask, cmap='gray')
   # plt.show()
-  training_loop(training_kspace, val_kspace, all_training_kspace, loss_mask, val_mask, model, math_utils.mixed_loss, optimizer, 40, device)
+  training_loop(training_kspace, val_kspace, all_training_kspace, loss_mask, val_mask, model, math_utils.mixed_loss, optimizer, 20, device)
 
 
   # view_im(ks)

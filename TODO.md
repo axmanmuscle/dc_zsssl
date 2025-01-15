@@ -44,3 +44,9 @@ A training step is then:
   - Run the model again on all of the training data (the previous training data and the loss data)
   - Compute loss between this and the validation data at the validation mask
 
+
+## 1/15
+Okay we need to redo how we do the training. Initially split the acquired data into training and validation. Then fix $k$ and split the training data into $k$ different training masks and loss masks. Then a single epoch trains over all of those $k$ training masks evaluated at the loss masks. Thus each epoch will be considerably more expensive but the authors claim this is vital.
+
+Also we need to split some of this up. Put the masking stuff into utils for code readability.
+

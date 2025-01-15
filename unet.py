@@ -126,7 +126,10 @@ class zs_model(nn.Module):
         # FT back to k-space
         kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.ifftshift( post_unet ) ) )
 
-        return kspace_out
+        # maxval = torch.max(torch.abs(kspace_out))
+        kspace_out_norm = kspace_out / torch.norm(kspace_out)
+
+        return kspace_out_norm
     
 
 
