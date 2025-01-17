@@ -47,7 +47,7 @@ def mask_split(mask, rng, big_frac):
         big_mask[mask_rows[mask_idx], mask_cols[mask_idx]] = 1
 
     small_mask = mask - big_mask
-    return big_mask, small_mask
+    return big_mask.astype(np.float32), small_mask.astype(np.float32)
 
 
 def training_val_split(mask, rng, train_frac):

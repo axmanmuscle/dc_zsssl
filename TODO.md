@@ -50,3 +50,6 @@ Okay we need to redo how we do the training. Initially split the acquired data i
 
 Also we need to split some of this up. Put the masking stuff into utils for code readability.
 
+## 1/17
+Some stuff with the masks is working. Need to fix the loss calculation (with tensor.detach()) to properly calculate loss.
+

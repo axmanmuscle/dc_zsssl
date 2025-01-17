@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from junkyard import view_im
 import utils
 
-def training_loop(training_data, val_data, all_training_data, loss_mask, val_mask, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
+def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
   """
   todo:
     - the data in is undersampled k-space. split into train and validation (oh this should be done earlier)
@@ -24,21 +24,24 @@ def training_loop(training_data, val_data, all_training_data, loss_mask, val_mas
 
   avg_train_loss = 0
   training_data = training_data.to(device)
-  all_training_data = all_training_data.to(device)
   val_data = val_data.to(device)
 
   tl_ar = []
   vl_ar = []
 
   for idx in range(num_epochs):
-    out = model(training_data) # inputs on this line will depend on how the model is set up
-    # this is an interesting point because "model" will need to encompass the fourier transforms
-    train_loss = loss_fun(out, all_training_data, loss_mask) # gt needs to come from the data loader?
-    val_out = model(all_training_data)
-    val_loss = loss_fun(val_out, val_data, val_mask)
+    for jdx, tl_mask in enumerate(tl_masks):
+      tmask = tl_mask[0]
+      lmask = tl_mask[1]
+      tdata = training_data * tmask
+      out = model(tdata) # inputs on this line will depend on how the model is set up
+      # this is an interesting point because "model" will need to encompass the fourier transforms
+      train_loss = loss_fun(out, training_data, lmask) # gt needs to come from the data loader?
+      val_out = model(training_data)
+      val_loss = loss_fun(val_out, val_data, val_mask)
 
-    tl_ar.append(train_loss.detach().numpy())
-    vl_ar.append(val_loss.detach().numpy())
+      tl_ar.append(train_loss.detach().numpy())
+      vl_ar.append(val_loss.detach().numpy())
 
     optimizer.zero_grad()
     train_loss.backward()
@@ -88,7 +91,8 @@ def main():
   mval = np.max(np.abs(ks))
   ks /= mval
   samp_frac = 0.4
-  train_frac = 0.85
+  train_frac = 0.85 # fraction of all samples devoted to training
+  train_loss_split_frac = 0.8 # fraction of training samples devoted to training vs. loss
   rng = np.random.default_rng(seed=12202024)
   torch.manual_seed(12202024)
   sImg = ks.shape
@@ -119,16 +123,22 @@ def main():
   model = zs_model()
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
-  all_training_kspace = all_training_kspace[None, None, :, :]
   training_kspace = training_kspace[None, None, :, :]
   val_kspace = val_kspace[None, None, :, :]
 
-  loss_mask = torch.tensor(loss_mask)
   val_mask = torch.tensor(val_mask)
 
   # plt.imshow(loss_mask, cmap='gray')
   # plt.show()
-  training_loop(training_kspace, val_kspace, all_training_kspace, loss_mask, val_mask, model, math_utils.mixed_loss, optimizer, 20, device)
+
+  # we actually want to create all k masks outside of the training loop because we want to create them once
+  tl_masks = []
+  for idx in range(k):
+    tm, lm = utils.mask_split(train_mask, rng, train_loss_split_frac)
+    tl_masks.append((tm, lm))
+    
+
+  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 20, device)
 
 
   # view_im(ks)
