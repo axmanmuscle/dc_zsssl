@@ -11,6 +11,7 @@ import glob
 import h5py
 import matplotlib.pyplot as plt
 from junkyard import view_im
+import utils
 
 def training_loop(training_data, val_data, all_training_data, loss_mask, val_mask, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
   """
@@ -54,123 +55,6 @@ def training_loop(training_data, val_data, all_training_data, loss_mask, val_mas
   out = model(training_data)
   view_im(np.squeeze(out.detach().numpy()))
 
-def undersample_kspace(sImg, rng, samp_frac):
-  """
-  here we should do the generic undersampling of k-space to go from a fully sampled image to whatever
-  undersampling pattern we want?
-  """
-
-  return 0
-
-def training_val_split(mask, training_frac):
-  """
-  here we'll split the undersampling mask into the training and validation portions
-  in the ZS-SSL paper this is splitting omega into Gamma and Omega\Gamma
-  """
-  return 0
-
-def make_masks(sImg, rng, samp_frac, train_frac, loss_frac = 0.3):
-  """
-  i don't actually know what I should do here
-  maybe a random subset of columns?
-
-  yeah lets do a subset of columns and some amount chosen in the middle
-  take the 10% of middle columns and some fraction of the rest
-
-  INPUTS:
-    sImg - dimensions of image
-    rng - numpy random number generator
-    samp_frac - fraction (0 < x < 1) of columns to use as undersampling
-    train_frac - fraction (9 < x < 1) of samples to use as training, > 0.85 recommended
-    loss_frac - fraction (0 < x < 1) of training mask to use as the loss calculation, < 0.3 recommended
-
-  """
-
-  # make sampling mask
-
-  numCols = sImg[1]
-
-  center = numCols // 2
-
-  fivePer = round(0.05 * numCols)
-  lowerB = center - fivePer
-  upperB = center + fivePer
-
-  colRange = [i for i in range(numCols) if i < lowerB or i > upperB]
-
-  colsChosen = rng.choice(colRange, round(samp_frac*len(colRange)), replace=False) 
-
-  mask = np.zeros(sImg)
-  mask[:, colsChosen] = 1
-  mask[:, lowerB:upperB] = 1
-
-  mask_indices = np.where(mask == 1)
-  num_samples = len(mask_indices[0])
-
-  mask_rows = mask_indices[0]
-  mask_cols = mask_indices[1]
-
-  # make training mask
-
-  train_num = round(train_frac * num_samples)
-  train_chosen = rng.choice(num_samples, train_num, replace=False)
-
-  train_mask = np.zeros(sImg)
-  for idx in range(train_num):
-    mask_idx = train_chosen[idx]
-    train_mask[mask_rows[mask_idx], mask_cols[mask_idx]] = 1
-
-  train_mask_indices = np.where(train_mask == 1)
-  num_train_samples = len(train_mask_indices[0])
-
-  train_mask_rows = train_mask_indices[0]
-  train_mask_cols = train_mask_indices[1]
-  # make loss mask??
-  # this is a subset of the training mask
-
-  loss_num = round(loss_frac * train_num)
-  loss_chosen = rng.choice(train_num, loss_num, replace=False)
-
-  loss_mask = np.zeros(sImg)
-  for idx in range(loss_num):
-    mask_idx = loss_chosen[idx]
-    loss_mask[train_mask_rows[mask_idx], train_mask_cols[mask_idx]] = 1
-
-  rest_training_mask = train_mask - loss_mask 
-  val_mask = mask - train_mask
-
-  # leftover_num_training = np.where(rest_training_mask == 1)
-
-  # print(f'num samples in total image: {sImg[0]} * {sImg[1]} = {np.prod(sImg)}')
-  # print(f'num samples in undersampled image: {num_samples}')
-  # print(f'num samples in training mask: {train_num}')
-  # print(f'num samples in training mask from mask: {num_train_samples}')
-  # print(f'num samples in loss mask: {loss_num}')
-  # print(f'num samples leftover for training: {len(leftover_num_training[0])}')
-  # print(f'num samples for validation: {np.sum(val_mask)}')
-
-  # plt.imshow(train_mask, cmap='gray')
-  # plt.title('training mask')
-
-  # plt.show()
-
-  # plt.imshow(loss_mask, cmap='gray')
-  # plt.title('loss mask')
-
-  # plt.show()
-
-  # plt.imshow(rest_training_mask, cmap='gray')
-  # plt.title('leftover training')
-
-  # plt.show()
-
-  # plt.imshow(val_mask, cmap='gray')
-  # plt.title('validation mask')
-  
-  # plt.show()
-
-  return mask.astype(np.float32), train_mask.astype(np.float32), loss_mask.astype(np.float32) # convert to 32bit float to prevent uptyping
-
 def main():
   """
   here's the steps
@@ -213,18 +97,14 @@ def main():
   ## and then somewhere generate a bunch of different training/loss masks!
 
   k = 20 # not an informed choice
-  data_mask, training_mask, loss_mask = make_masks(sImg, rng, samp_frac, train_frac)
+  undersample_mask = utils.undersample_kspace(sImg, rng, samp_frac)
+  train_mask, val_mask = utils.mask_split(undersample_mask, rng, train_frac)
 
-  train_split = training_mask - loss_mask
-
-  sub_kspace = data_mask * ks
-  all_training_kspace = training_mask * ks
-  training_kspace = train_split * ks
-  val_mask = data_mask - training_mask
+  sub_kspace = undersample_mask * ks
+  training_kspace = train_mask * ks
   val_kspace = val_mask * ks
 
   sub_kspace = torch.tensor(sub_kspace)
-  all_training_kspace = torch.tensor(all_training_kspace)
   training_kspace = torch.tensor(training_kspace)
   val_kspace = torch.tensor(val_kspace)
 
