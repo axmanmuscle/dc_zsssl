@@ -22,7 +22,6 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
 
   model.train()
 
-  avg_train_loss = 0
   training_data = training_data.to(device)
   val_data = val_data.to(device)
 
@@ -30,18 +29,29 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
   vl_ar = []
 
   for idx in range(num_epochs):
+    avg_train_loss = 0.0
     for jdx, tl_mask in enumerate(tl_masks):
+      print(f'subiter {jdx}')
       tmask = tl_mask[0]
       lmask = tl_mask[1]
+
+      tmask = torch.tensor(tmask)
+      lmask = torch.tensor(lmask)
+
       tdata = training_data * tmask
       out = model(tdata) # inputs on this line will depend on how the model is set up
       # this is an interesting point because "model" will need to encompass the fourier transforms
-      train_loss = loss_fun(out, training_data, lmask) # gt needs to come from the data loader?
-      val_out = model(training_data)
-      val_loss = loss_fun(val_out, val_data, val_mask)
+      if jdx < 1:
+        train_loss = loss_fun(out, training_data, lmask) # gt needs to come from the data loader?
+      else:
+        train_loss += loss_fun(out, training_data, lmask)
+      avg_train_loss += train_loss.detach().numpy()
 
-      tl_ar.append(train_loss.detach().numpy())
-      vl_ar.append(val_loss.detach().numpy())
+    val_out = model(training_data)
+    val_loss = loss_fun(val_out, val_data, val_mask)
+
+    tl_ar.append(avg_train_loss / (jdx+1))
+    vl_ar.append(val_loss.detach().numpy())
 
     optimizer.zero_grad()
     train_loss.backward()
@@ -138,7 +148,7 @@ def main():
     tl_masks.append((tm, lm))
     
 
-  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 20, device)
+  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 5, device)
 
 
   # view_im(ks)
