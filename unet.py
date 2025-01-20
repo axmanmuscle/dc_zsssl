@@ -114,6 +114,7 @@ class zs_model(nn.Module):
 
         # run unet
         post_unet = self.unet(im_space_stack)
+        #post_unet = im_space_stack
 
         # split back into real/imaginary
 
