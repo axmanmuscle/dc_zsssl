@@ -134,7 +134,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
       lmask = lmask.to(device)
 
       tdata = training_data * tmask
-      tdata_consistency = tdata[tmask > 0]
+      tdata_consistency = tdata[:, :, tmask > 0]
       out = model(tdata, tmask, tdata_consistency) # inputs on this line will depend on how the model is set up
       # this is an interesting point because "model" will need to encompass the fourier transforms
       #if jdx < 1:
@@ -147,8 +147,9 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
       train_loss.backward()
       optimizer.step()
 
-    training_mask = training_data > 0
-    all_tdata_consistency = training_data[training_mask]
+    training_mask = torch.abs(training_data) > 0
+    training_mask = torch.squeeze(training_mask)
+    all_tdata_consistency = training_data[:, :, training_mask]
     val_out = model(training_data, training_mask, all_tdata_consistency)
     val_loss = loss_fun(val_out, val_data, val_mask)
     vl_data = val_loss.cpu().data
@@ -165,7 +166,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
 
     if vl_data <= vl_min:
       vl_min = vl_data
-      torch.save(checkpoint, os.path.join(directory, "best_70.pth"))
+      torch.save(checkpoint, os.path.join(directory, "dc_best_50.pth"))
       val_loss_tracker = 0
     else:
       val_loss_tracker += 1
@@ -231,7 +232,7 @@ def main():
   ## refactor: here we'll make a function to subsample k-space, a function to split into training and validation
   ## and then somewhere generate a bunch of different training/loss masks!
 
-  k = 70 # not an informed choice
+  k = 50 # not an informed choice
   undersample_mask = utils.undersample_kspace(sImg, rng, samp_frac)
   train_mask, val_mask = utils.mask_split(undersample_mask, rng, train_frac)
 
@@ -280,7 +281,7 @@ def main():
     tl_masks.append((tm, lm))
     
 
-  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
+  training_loop_dc(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
 
 
   # view_im(ks)

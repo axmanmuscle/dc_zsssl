@@ -137,7 +137,7 @@ class dc_zs_model(nn.Module):
     """
     zero shot ssl with enforced data consistency
     """
-    def __init__(self, val_mask, ):
+    def __init__(self):
         super().__init__()
 
         self.unet = build_unet()
@@ -171,7 +171,7 @@ class dc_zs_model(nn.Module):
 
         # data consistency step
         if mask is not None:
-            kspace_out[mask > 0] = data
+            kspace_out[:, :, mask > 0] = data
         else:
             print('Warning: running the data consistent model without adding in data.')
 
