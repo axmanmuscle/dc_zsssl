@@ -133,6 +133,53 @@ class zs_model(nn.Module):
         return kspace_out_norm
     
 
+class dc_zs_model(nn.Module):
+    """
+    zero shot ssl with enforced data consistency
+    """
+    def __init__(self, val_mask, ):
+        super().__init__()
+
+        self.unet = build_unet()
+
+    def forward(self, kspace, mask = None, data = None):
+        """
+        mask and data should be pased in as the data consistency layer
+        """
+
+        # take IFT to make it image space
+        im_space = torch.fft.ifftshift( torch.fft.ifftn( torch.fft.fftshift( kspace ) ) )
+
+        im_space_r = torch.view_as_real(im_space)
+        n = im_space_r.shape[-3]
+        im_space_stack = torch.cat((im_space_r[..., 0], im_space_r[..., 1]), dim=2)
+
+        # run unet
+        post_unet = self.unet(im_space_stack)
+        #post_unet = im_space_stack
+
+        # split back into real/imaginary
+
+        post_unet_r = post_unet[..., 1:n+1, :]
+        post_unet_im = post_unet[..., n:, :]
+
+        post_unet = torch.stack((post_unet_r, post_unet_im), dim=-1)
+        post_unet = torch.view_as_complex(post_unet)
+
+        # FT back to k-space
+        kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.ifftshift( post_unet ) ) )
+
+        # data consistency step
+        if mask is not None:
+            kspace_out[mask > 0] = data
+        else:
+            print('Warning: running the data consistent model without adding in data.')
+
+        # maxval = torch.max(torch.abs(kspace_out))
+        kspace_out_norm = kspace_out / torch.norm(kspace_out)
+
+        return kspace_out_norm
+
 
 if __name__ == "__main__":
     # x = torch.randn((2, 3, 512, 512))

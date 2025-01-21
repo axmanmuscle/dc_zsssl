@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import scipy.io as sio
 import numpy as np
-from unet import zs_model
+from unet import zs_model, dc_zs_model
 import math_utils
 import glob
 import h5py
@@ -62,6 +62,94 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
       optimizer.step()
 
     val_out = model(training_data)
+    val_loss = loss_fun(val_out, val_data, val_mask)
+    vl_data = val_loss.cpu().data
+
+    tl_ar.append(avg_train_loss / (jdx+1))
+    vl_ar.append(vl_data)
+
+    checkpoint = {
+      "epoch": ep,
+      "val_loss_min": vl_data,
+      "model_state": model.state_dict(),
+      "optim_state": optimizer.state_dict()
+    }
+
+    if vl_data <= vl_min:
+      vl_min = vl_data
+      torch.save(checkpoint, os.path.join(directory, "best_70.pth"))
+      val_loss_tracker = 0
+    else:
+      val_loss_tracker += 1
+
+    ep += 1
+
+    # optimizer.zero_grad()
+    # train_loss.backward()
+    # optimizer.step()
+
+    print('on step {} of {} with tl {:.2E} and vl {:.2E}'.format(ep, num_epochs, float(tl_ar[-1]), float(val_loss.data)))
+    # print(f'on step {idx} of {num_epochs} with tl {round(float(train_loss.data), 3)} and vl {round(float(val_loss.data), 3)}')
+
+  plt.plot(tl_ar)
+  plt.plot(vl_ar)
+  plt.legend(['training loss', 'val loss'])
+  plt.show()
+
+  out = model(training_data)
+  oc = out.cpu()
+  view_im(np.squeeze(oc.detach().numpy()))
+
+def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fun, optimizer, num_epochs = 50, device = torch.device('cpu')):
+  """
+  todo:
+    - the data in is undersampled k-space. split into train and validation (oh this should be done earlier)
+    - the training data is split out and run through the model. compare loss
+  """
+  directory = os.getcwd()
+  model.train()
+
+  training_data = training_data.to(device)
+  val_data = val_data.to(device)
+  val_mask = val_mask.to(device)
+
+  vl_min = 10000
+
+  tl_ar = []
+  vl_ar = []
+  ep = 0
+  val_loss_tracker = 0
+  val_stop_training = 10
+
+  while ep < num_epochs and val_loss_tracker < val_stop_training:
+    avg_train_loss = 0.0
+    for jdx, tl_mask in tqdm(enumerate(tl_masks)):
+      #print(f'subiter {jdx}')
+      tmask = tl_mask[0]
+      lmask = tl_mask[1]
+
+      tmask = torch.tensor(tmask)
+      lmask = torch.tensor(lmask)
+      tmask = tmask.to(device)
+      lmask = lmask.to(device)
+
+      tdata = training_data * tmask
+      tdata_consistency = tdata[tmask > 0]
+      out = model(tdata, tmask, tdata_consistency) # inputs on this line will depend on how the model is set up
+      # this is an interesting point because "model" will need to encompass the fourier transforms
+      #if jdx < 1:
+      if True:
+        train_loss = loss_fun(out, training_data, lmask) # gt needs to come from the data loader?
+      else:
+        train_loss += loss_fun(out, training_data, lmask)
+      avg_train_loss += train_loss.cpu().data
+      optimizer.zero_grad()
+      train_loss.backward()
+      optimizer.step()
+
+    training_mask = training_data > 0
+    all_tdata_consistency = training_data[training_mask]
+    val_out = model(training_data, training_mask, all_tdata_consistency)
     val_loss = loss_fun(val_out, val_data, val_mask)
     vl_data = val_loss.cpu().data
 
@@ -173,7 +261,7 @@ def main():
   # view_im(os, 'after model')
   # return 0
 
-  model = zs_model()
+  model = dc_zs_model()
   model = model.to(device)
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
