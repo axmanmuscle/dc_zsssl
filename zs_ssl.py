@@ -36,6 +36,8 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
   val_loss_tracker = 0
   val_stop_training = 10
 
+  model_fname = "best_70.pth"
+
   while ep < num_epochs and val_loss_tracker < val_stop_training:
     avg_train_loss = 0.0
     for jdx, tl_mask in tqdm(enumerate(tl_masks)):
@@ -77,7 +79,7 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
 
     if vl_data <= vl_min:
       vl_min = vl_data
-      torch.save(checkpoint, os.path.join(directory, "best_70.pth"))
+      torch.save(checkpoint, os.path.join(directory, model_fname))
       val_loss_tracker = 0
     else:
       val_loss_tracker += 1
@@ -95,6 +97,9 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
   plt.plot(vl_ar)
   plt.legend(['training loss', 'val loss'])
   plt.show()
+
+  best_checkpoint = torch.load(os.path.join(directory, model_fname))
+  model.load_state_dict(best_checkpoint['model_state'])
 
   out = model(training_data)
   oc = out.cpu()
