@@ -113,13 +113,19 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   val_data = val_data.to(device)
   val_mask = val_mask.to(device)
 
+  training_mask = torch.abs(training_data) > 0
+  training_mask = torch.squeeze(training_mask)
+  all_tdata_consistency = training_data[:, :, training_mask]
+
   vl_min = 10000
 
   tl_ar = []
   vl_ar = []
   ep = 0
   val_loss_tracker = 0
-  val_stop_training = 10
+  val_stop_training = 15
+
+  model_fname = "dc_best_50.pth"
 
   while ep < num_epochs and val_loss_tracker < val_stop_training:
     avg_train_loss = 0.0
@@ -147,9 +153,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
       train_loss.backward()
       optimizer.step()
 
-    training_mask = torch.abs(training_data) > 0
-    training_mask = torch.squeeze(training_mask)
-    all_tdata_consistency = training_data[:, :, training_mask]
+    
     val_out = model(training_data, training_mask, all_tdata_consistency)
     val_loss = loss_fun(val_out, val_data, val_mask)
     vl_data = val_loss.cpu().data
@@ -166,7 +170,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
 
     if vl_data <= vl_min:
       vl_min = vl_data
-      torch.save(checkpoint, os.path.join(directory, "dc_best_50.pth"))
+      torch.save(checkpoint, os.path.join(directory, model_fname))
       val_loss_tracker = 0
     else:
       val_loss_tracker += 1
@@ -185,7 +189,10 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   plt.legend(['training loss', 'val loss'])
   plt.show()
 
-  out = model(training_data)
+  best_checkpoint = torch.load(os.path.join(directory, model_fname))
+  model.load_state_dict(best_checkpoint['model_state'])
+
+  out = model(training_data, training_mask, all_tdata_consistency)
   oc = out.cpu()
   view_im(np.squeeze(oc.detach().numpy()))
 
