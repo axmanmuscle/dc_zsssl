@@ -123,7 +123,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   vl_ar = []
   ep = 0
   val_loss_tracker = 0
-  val_stop_training = 15
+  val_stop_training = 10
 
   model_fname = "dc_best_50.pth"
 
@@ -269,7 +269,7 @@ def main():
   # view_im(os, 'after model')
   # return 0
 
-  model = dc_zs_model()
+  model = zs_model()
   model = model.to(device)
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
@@ -288,7 +288,7 @@ def main():
     tl_masks.append((tm, lm))
     
 
-  training_loop_dc(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
+  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
 
 
   # view_im(ks)

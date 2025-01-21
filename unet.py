@@ -175,8 +175,9 @@ class dc_zs_model(nn.Module):
         else:
             print('Warning: running the data consistent model without adding in data.')
 
-        # maxval = torch.max(torch.abs(kspace_out))
-        kspace_out_norm = kspace_out / torch.norm(kspace_out)
+        maxval = torch.max(torch.abs(kspace_out))
+        # kspace_out_norm = kspace_out / torch.norm(kspace_out)
+        kspace_out_norm = kspace_out / maxval
 
         return kspace_out_norm
 
