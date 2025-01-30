@@ -100,8 +100,9 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
 
   best_checkpoint = torch.load(os.path.join(directory, model_fname))
   model.load_state_dict(best_checkpoint['model_state'])
+  all_data = training_data+val_data
 
-  out = model(training_data)
+  out = model(all_data)
   oc = out.cpu()
   view_im(np.squeeze(oc.detach().numpy()))
 
@@ -122,6 +123,11 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   training_mask = torch.squeeze(training_mask)
   all_tdata_consistency = training_data[:, :, training_mask]
 
+  all_data = training_data + val_data
+  alldata_mask = torch.abs(all_data) > 0
+  alldata_mask = torch.squeeze(alldata_mask)
+  alldata_consistency = all_data[:, :, alldata_mask]
+
   vl_min = 10000
 
   tl_ar = []
@@ -130,7 +136,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   val_loss_tracker = 0
   val_stop_training = 10
 
-  model_fname = "dc_best_50.pth"
+  model_fname = "dc_best_90.pth"
 
   while ep < num_epochs and val_loss_tracker < val_stop_training:
     avg_train_loss = 0.0
@@ -197,7 +203,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   best_checkpoint = torch.load(os.path.join(directory, model_fname))
   model.load_state_dict(best_checkpoint['model_state'])
 
-  out = model(training_data, training_mask, all_tdata_consistency)
+  out = model(all_data, alldata_mask, alldata_consistency)
   oc = out.cpu()
   view_im(np.squeeze(oc.detach().numpy()))
 
@@ -244,7 +250,7 @@ def main():
   ## refactor: here we'll make a function to subsample k-space, a function to split into training and validation
   ## and then somewhere generate a bunch of different training/loss masks!
 
-  k = 50 # not an informed choice
+  k = 20 # not an informed choice
   undersample_mask = utils.undersample_kspace(sImg, rng, samp_frac)
   train_mask, val_mask = utils.mask_split(undersample_mask, rng, train_frac)
 
@@ -256,8 +262,8 @@ def main():
   training_kspace = torch.tensor(training_kspace)
   val_kspace = torch.tensor(val_kspace)
 
-  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  #device = torch.device('cpu')
+  #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  device = torch.device('cpu')
 
   # view_im(sub_kspace, 'undersampled k-space')
   # view_im(ks, 'fully sampled image')
@@ -274,7 +280,7 @@ def main():
   # view_im(os, 'after model')
   # return 0
 
-  model = zs_model()
+  model = dc_zs_model()
   model = model.to(device)
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
@@ -293,7 +299,7 @@ def main():
     tl_masks.append((tm, lm))
     
 
-  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
+  training_loop_dc(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
 
 
   # view_im(ks)
