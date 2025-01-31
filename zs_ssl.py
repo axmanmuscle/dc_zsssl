@@ -134,9 +134,9 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   vl_ar = []
   ep = 0
   val_loss_tracker = 0
-  val_stop_training = 10
+  val_stop_training = 15
 
-  model_fname = "dc_best_90.pth"
+  model_fname = "dc_best_100.pth"
 
   while ep < num_epochs and val_loss_tracker < val_stop_training:
     avg_train_loss = 0.0
@@ -237,6 +237,7 @@ def main():
   slice_num = 18
   with h5py.File(fnames[file_num], 'r') as hf:
     ks = hf['kspace'][slice_num]
+    ks_mask = ks[:, 18:350]
   
   mval = np.max(np.abs(ks))
   ks /= mval
@@ -245,13 +246,16 @@ def main():
   train_loss_split_frac = 0.8 # fraction of training samples devoted to training vs. loss
   rng = np.random.default_rng(seed=12202024)
   torch.manual_seed(12202024)
+  sMask = ks_mask.shape
   sImg = ks.shape
 
   ## refactor: here we'll make a function to subsample k-space, a function to split into training and validation
   ## and then somewhere generate a bunch of different training/loss masks!
 
-  k = 20 # not an informed choice
-  undersample_mask = utils.undersample_kspace(sImg, rng, samp_frac)
+  k = 100 # not an informed choice
+  usMask = utils.undersample_kspace(sMask, rng, samp_frac)
+  undersample_mask = np.zeros(sImg)
+  undersample_mask[:, 18:350] = usMask
   train_mask, val_mask = utils.mask_split(undersample_mask, rng, train_frac)
 
   sub_kspace = undersample_mask * ks
@@ -262,8 +266,8 @@ def main():
   training_kspace = torch.tensor(training_kspace)
   val_kspace = torch.tensor(val_kspace)
 
-  #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  device = torch.device('cpu')
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  #device = torch.device('cpu')
 
   # view_im(sub_kspace, 'undersampled k-space')
   # view_im(ks, 'fully sampled image')
