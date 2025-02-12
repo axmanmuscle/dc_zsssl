@@ -118,7 +118,7 @@ class zs_model(nn.Module):
 
         # split back into real/imaginary
 
-        post_unet_r = post_unet[..., 1:n+1, :]
+        post_unet_r = post_unet[..., :n, :]
         post_unet_im = post_unet[..., n:, :]
 
         post_unet = torch.stack((post_unet_r, post_unet_im), dim=-1)
@@ -147,6 +147,8 @@ class dc_zs_model(nn.Module):
         mask and data should be pased in as the data consistency layer
         """
 
+        ## pad out to 512 here?
+
         # take IFT to make it image space
         im_space = torch.fft.ifftshift( torch.fft.ifftn( torch.fft.fftshift( kspace ) ) )
 
@@ -160,7 +162,7 @@ class dc_zs_model(nn.Module):
 
         # split back into real/imaginary
 
-        post_unet_r = post_unet[..., 1:n+1, :]
+        post_unet_r = post_unet[..., :n, :]
         post_unet_im = post_unet[..., n:, :]
 
         post_unet = torch.stack((post_unet_r, post_unet_im), dim=-1)

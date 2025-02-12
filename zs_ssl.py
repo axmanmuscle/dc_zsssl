@@ -229,14 +229,16 @@ def main():
   """
 
   # data_dir = '/Volumes/T7 Shield/FastMRI/knee/singlecoil_train'
-  # data_dir = '/Users/alex/Desktop/fastMRI/knee_singlecoil_train'
-  data_dir = '/home/alex/Documents/research/mri/knee_singlecoil_train'
+  data_dir = '/Users/alex/Desktop/fastMRI/knee_singlecoil_train'
+  # data_dir = '/home/alex/Documents/research/mri/knee_singlecoil_train'
   fnames = glob.glob(data_dir +'/*')
 
   file_num = 1
   slice_num = 22
   left_idx = 18
   right_idx = 350
+  # here probably pad out to 512?
+  # no no pad inside the 
   with h5py.File(fnames[file_num], 'r') as hf:
     ks = hf['kspace'][slice_num]
     ks_mask = ks[:, left_idx:right_idx]

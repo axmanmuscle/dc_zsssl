@@ -53,3 +53,9 @@ Also we need to split some of this up. Put the masking stuff into utils for code
 ## 1/17
 Some stuff with the masks is working. Need to fix the loss calculation (with tensor.detach()) to properly calculate loss.
 
+## 2/4
+Looks like scaling was the real problem all along. Seems (?) to be working now. Run an experiment with smaller sample fractions to confirm. Try to get the UNet working with different sizes of images.
+
+## 2/5
+Making an unrolled network. IDK how to test - maybe start with applying it to a normal proximal grad descent problem?
+
