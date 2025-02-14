@@ -114,3 +114,19 @@ def mixed_loss(output, target, mask):
     tm = target * mask
     n = torch.norm(om - tm) / torch.norm(tm) + torch.norm(om - tm, 1) / torch.norm(tm, 1)
     return n
+
+def kspace_to_imspace(kspace):
+  
+    im_space = np.fft.ifftshift( np.fft.ifftn( np.fft.fftshift( kspace, axes=(0, 1)),  axes=(0, 1) ), axes=(0,1))
+
+    return im_space
+
+def view_im(kspace, title=''):
+
+    im_space = kspace_to_imspace(kspace)
+
+    plt.imshow( np.abs( im_space ), cmap='grey')
+
+    if len(title) > 0:
+        plt.title(title)
+    plt.show()

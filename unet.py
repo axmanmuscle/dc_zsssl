@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import torch.nn.functional as F
+from torchvision.transforms import Resize
 
 class conv_block(nn.Module):
     def __init__(self, in_c, out_c):
@@ -52,8 +54,14 @@ class decoder_block(nn.Module):
         return x
 
 class build_unet(nn.Module):
-    def __init__(self):
+    def __init__(self, width):
         super().__init__()
+
+        """ padding in horizontal direction """
+        hpad = (512 - width)/2 + 1
+        hker = 2*hpad - 1
+        self.enlarge = nn.Conv2d(1,1,stride=1,kernel_size=3,padding=(1,int(hpad)))
+        self.decimate = nn.Conv2d(1,1,stride=1,kernel_size=(3, int(hker)),padding=(1,0))
 
         """ Encoder """
         self.e1 = encoder_block(1, 64)
@@ -75,8 +83,11 @@ class build_unet(nn.Module):
 
     def forward(self, inputs):
 
+        """ pad to 512 """
+        s0 = self.enlarge(inputs)
+
         """ Encoder """
-        s1, p1 = self.e1(inputs)
+        s1, p1 = self.e1(s0)
         s2, p2 = self.e2(p1)
         s3, p3 = self.e3(p2)
         s4, p4 = self.e4(p3)
@@ -91,6 +102,8 @@ class build_unet(nn.Module):
         d4 = self.d4(d3, s1)
 
         outputs = self.outputs(d4)
+        outputs = self.decimate(outputs)
+        
 
         return outputs
 
@@ -98,10 +111,10 @@ class zs_model(nn.Module):
     """
     may need to add something like dimensions in here? so we can build the unet at the appropriate size.
     """
-    def __init__(self):
+    def __init__(self, h, w):
         super().__init__()
 
-        self.unet = build_unet()
+        self.unet = build_unet(w)
 
     def forward(self, kspace):
 
@@ -127,8 +140,8 @@ class zs_model(nn.Module):
         # FT back to k-space
         kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.ifftshift( post_unet ) ) )
 
-        # maxval = torch.max(torch.abs(kspace_out))
-        kspace_out_norm = kspace_out / torch.norm(kspace_out)
+        maxval = torch.max(torch.abs(kspace_out))
+        kspace_out_norm = kspace_out / maxval
 
         return kspace_out_norm
     
@@ -137,17 +150,15 @@ class dc_zs_model(nn.Module):
     """
     zero shot ssl with enforced data consistency
     """
-    def __init__(self):
+    def __init__(self, h, w):
         super().__init__()
 
-        self.unet = build_unet()
+        self.unet = build_unet(w)
 
     def forward(self, kspace, mask = None, data = None):
         """
         mask and data should be pased in as the data consistency layer
         """
-
-        ## pad out to 512 here?
 
         # take IFT to make it image space
         im_space = torch.fft.ifftshift( torch.fft.ifftn( torch.fft.fftshift( kspace ) ) )
@@ -175,6 +186,8 @@ class dc_zs_model(nn.Module):
         # kspace_out_norm = kspace_out / torch.norm(kspace_out)
         kspace_out_norm = kspace_out / maxval
 
+        
+
         # data consistency step
         if mask is not None:
             kspace_out_norm[:, :, mask > 0] = data
@@ -188,13 +201,13 @@ class dc_zs_model(nn.Module):
 
 if __name__ == "__main__":
     # x = torch.randn((2, 3, 512, 512))
-    x = torch.randn((1, 1, 640, 372)) + 1j*torch.randn((1,1,640,372))
+    x = torch.randn((1, 1, 640, 390)) + 1j*torch.randn((1,1,640,390))
     print(x.dtype)
     # f = build_unet()
     # y = f(x)
     # print(y.shape)
 
-    f2 = zs_model()
+    f2 = dc_zs_model(*(torch.squeeze(x).shape))
     y2 = f2(x)
     print(y2.shape)
     print(y2.dtype)

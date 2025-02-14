@@ -36,7 +36,7 @@ def training_loop(training_data, val_data, val_mask, tl_masks, model, loss_fun, 
   val_loss_tracker = 0
   val_stop_training = 10
 
-  model_fname = "best_70.pth"
+  model_fname = f"best_{len(tl_masks)}.pth"
 
   while ep < num_epochs and val_loss_tracker < val_stop_training:
     avg_train_loss = 0.0
@@ -136,7 +136,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   val_loss_tracker = 0
   val_stop_training = 15
 
-  model_fname = "dc_best_90.pth"
+  model_fname = f"dc_best_{len(tl_masks)}.pth"
 
   while ep < num_epochs and val_loss_tracker < val_stop_training:
     avg_train_loss = 0.0
@@ -207,6 +207,7 @@ def training_loop_dc(training_data, val_data, val_mask, tl_masks, model, loss_fu
   oc = out.cpu()
   view_im(np.squeeze(oc.detach().numpy()))
 
+
 def main():
   """
   here's the steps
@@ -229,8 +230,8 @@ def main():
   """
 
   # data_dir = '/Volumes/T7 Shield/FastMRI/knee/singlecoil_train'
-  data_dir = '/Users/alex/Desktop/fastMRI/knee_singlecoil_train'
-  # data_dir = '/home/alex/Documents/research/mri/knee_singlecoil_train'
+  # data_dir = '/Users/alex/Desktop/fastMRI/knee_singlecoil_train'
+  data_dir = '/home/alex/Documents/research/mri/knee_singlecoil_train'
   fnames = glob.glob(data_dir +'/*')
 
   file_num = 1
@@ -245,7 +246,7 @@ def main():
   
   mval = np.max(np.abs(ks))
   ks /= mval
-  samp_frac = 0.3
+  samp_frac = 0.05
   train_frac = 0.85 # fraction of all samples devoted to training
   train_loss_split_frac = 0.8 # fraction of training samples devoted to training vs. loss
   rng = np.random.default_rng(seed=12202024)
@@ -256,7 +257,7 @@ def main():
   ## refactor: here we'll make a function to subsample k-space, a function to split into training and validation
   ## and then somewhere generate a bunch of different training/loss masks!
 
-  k = 90 # not an informed choice
+  k = 100 # not an informed choice
   usMask = utils.undersample_kspace(sMask, rng, samp_frac)
   undersample_mask = np.zeros(sImg)
   undersample_mask[:, left_idx:right_idx] = usMask
@@ -290,7 +291,14 @@ def main():
   # view_im(os, 'after model')
   # return 0
 
-  model = zs_model()
+  # model = zs_model()
+  # model = model.to(device)
+
+  # npr = 0
+  # for pr in model.parameters():
+  #   npr += 1
+  #   print(f'ndc: level {npr} with len {pr.size()}')
+  model = dc_zs_model(*(ks.shape))
   model = model.to(device)
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
@@ -299,9 +307,6 @@ def main():
 
   val_mask = torch.tensor(val_mask)
 
-  # plt.imshow(loss_mask, cmap='gray')
-  # plt.show()
-
   # we actually want to create all k masks outside of the training loop because we want to create them once
   tl_masks = []
   for idx in range(k):
@@ -309,7 +314,20 @@ def main():
     tl_masks.append((tm, lm))
     
 
-  training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
+  # training_loop(training_kspace, val_kspace, val_mask, tl_masks, model, math_utils.mixed_loss, optimizer, 100, device)
+
+ 
+
+  # npr = 0
+  # for pr in model.parameters():
+  #   npr += 1
+  #   print(f'dc: level {npr} with len {pr.size()}')
+
+  optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
+
+  training_loop_dc(training_kspace, val_kspace, val_mask, tl_masks,\
+     model, math_utils.mixed_loss, optimizer, 100, device)
+
 
 
   # view_im(ks)
