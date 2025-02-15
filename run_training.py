@@ -12,6 +12,7 @@ import h5py
 import utils
 from unet import zs_model, dc_zs_model
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 def training_loop(training_data, val_data, val_mask, tl_masks,
@@ -116,19 +117,31 @@ def training_loop(training_data, val_data, val_mask, tl_masks,
   plt.plot(tl_ar)
   plt.plot(vl_ar)
   plt.legend(['training loss', 'val loss'])
-  plt.savefig(os.path.join(directory, 'loss_fig.png'))
+  if data_consistency:
+    loss_str = 'dc_loss_fig.png'
+  else:
+    loss_str = 'nodc_loss_fig.png'
+  plt.savefig(os.path.join(directory, loss_str))
 
   best_checkpoint = torch.load(os.path.join(directory, model_fname))
   model.load_state_dict(best_checkpoint['model_state'])
   all_data = training_data+val_data
 
-  out = model(all_data)
-  oc = out.cpu()
+  if data_consistency:
+    out = model(all_data, alldata_mask, alldata_consistency)
+    tstr = 'dc_output.png'
+  else:
+    out = model(all_data)
+    tstr = 'nodc_output.png'
+  out = out.cpu()
 
-  tstr = tstr
-  im = math_utils.kspace_to_imspace(out)
-  plt.imshow( np.abs( im_space ), cmap='grey')
-  plt.imsave(os.path.join(directory, 'output.png'))
+  oc = np.squeeze(out.detach().numpy())
+
+  im = math_utils.kspace_to_imspace(oc)
+  # plt.imshow( np.abs( im ), cmap='grey')
+  plt.imsave(os.path.join(directory, tstr), np.abs( im ), cmap='grey')
+
+  plt.clf()
 
 def run_training(ks, sImg, sMask, left_idx, right_idx, rng, samp_frac, train_frac, 
                  train_loss_split_frac, k, dc, results_dir,
@@ -168,13 +181,15 @@ def run_training(ks, sImg, sMask, left_idx, right_idx, rng, samp_frac, train_fra
   optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
 
   directory = f'sf{int(samp_frac*100)}p_tf{int(train_frac*100)}p_k{k}_vst{val_stop_training}'
+  if dc:
+    directory = "dc_" + directory
   directory = os.path.join(results_dir, directory)
 
   if not os.path.isdir(directory):
     os.mkdir(directory)
 
   training_loop(training_kspace, val_kspace, val_mask, tl_masks,
-              model, math_utils.mixed_loss, optimizer, True, 
+              model, math_utils.mixed_loss, optimizer, dc, 
               val_stop_training, num_epochs, device,
               directory)
 
@@ -183,7 +198,7 @@ def main():
   read in data and decide what to iterate over
   """
   data_dir = '/home/alex/Documents/research/mri/knee_singlecoil_train'
-  results_dir = '/home/alex/Documents/research/mri/results'
+  results_dir = '/home/alex/Documents/research/mri/results/213_tests'
   fnames = glob.glob(data_dir +'/*')
 
   file_num = 1
@@ -205,16 +220,22 @@ def main():
   sMask = ks_mask.shape
   sImg = ks.shape
 
-  samp_frac = 0.25
-  train_frac = 0.85
+  samp_fracs = [0.35, 0.25, 0.15]
+  train_fracs = [0.9, 0.8]
   train_loss_split_frac = 0.8
-  k = 20
-  dc = True
-  val_stop_training = 25
+  k_s = [100, 50]
+  dcs = [True, False]
+  val_stop_trainings = [15]
 
-  run_training(ks, sImg, sMask, left_idx, right_idx, rng, 
-               samp_frac, train_frac, train_loss_split_frac, 
-               k, dc, results_dir, val_stop_training, num_epochs=100)
+  for sf in samp_fracs:
+    for tf in train_fracs:
+      for k in k_s:
+        for vst in val_stop_trainings:
+          for dc in dcs:
+
+            run_training(ks, sImg, sMask, left_idx, right_idx, rng, 
+                      sf, tf, train_loss_split_frac, 
+                      k, dc, results_dir, vst, 100)
   return 0
   
 if __name__ == "__main__":
