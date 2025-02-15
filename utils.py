@@ -29,6 +29,40 @@ def undersample_kspace(sImg, rng, samp_frac):
 
     return mask
 
+def undersample_kspace_gaussian(sImg, rng, samp_frac):
+    """
+    undersampling kspace in the same way but using a gaussian instead
+    i think this needs to be iterative
+    """
+
+    numCols = sImg[1]
+
+    center = numCols // 2
+
+    fivePer = round(0.05 * numCols)
+    lowerB = center - fivePer
+    upperB = center + fivePer
+
+    colRange = [i for i in range(numCols)]
+    totalNumCols = round(samp_frac * len(colRange))
+
+    colsChosen = [i for i in range(lowerB, upperB+1)]
+    numColsChosen = len(colsChosen)
+
+    while numColsChosen < totalNumCols:
+        t = rng.normal(center, center/2)
+        t = round(t)
+        if t > 0 and t < numCols:
+            if t not in colsChosen:
+                colsChosen.append(t)
+                numColsChosen += 1
+
+
+    mask = np.zeros(sImg)
+    mask[:, colsChosen] = 1
+
+    return mask
+
 def mask_split(mask, rng, big_frac):
     mask_indices = np.where(mask == 1)
     num_samples = len(mask_indices[0])
@@ -240,6 +274,10 @@ def test():
 
     mask = undersample_kspace(sImg, rng, sample_frac)
     plt.imshow(mask, cmap='gray')
+    plt.show()
+
+    mask2 = undersample_kspace_gaussian(sImg, rng, sample_frac)
+    plt.imshow(mask2, cmap='gray')
     plt.show()
 
     rng1 = np.random.default_rng(2024)
