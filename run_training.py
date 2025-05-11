@@ -113,6 +113,19 @@ def training_loop(training_data, val_data, val_mask, tl_masks,
 
     print('on step {} of {} with tl {:.2E} and vl {:.2E}'.format(ep, num_epochs, float(tl_ar[-1]), float(val_loss.data)))
     # print(f'on step {idx} of {num_epochs} with tl {round(float(train_loss.data), 3)} and vl {round(float(val_loss.data), 3)}')
+    ## optional
+    # save images at each epoch
+    all_data = training_data+val_data
+    out = model(all_data, alldata_mask, alldata_consistency)
+    tstr = f'output_epoch{ep}.png'
+
+    out = out.cpu()
+    oc = np.squeeze(out.detach().numpy())
+    img_dir = os.path.join(directory, 'imgs/')
+
+    if not os.path.isdir(img_dir):
+      os.mkdir(img_dir)
+    plt.imsave(os.path.join(img_dir, tstr), np.abs( oc ), cmap='grey')
 
   plt.plot(tl_ar)
   plt.plot(vl_ar)
@@ -147,7 +160,7 @@ def run_training(ks, sImg, sMask, left_idx, right_idx, rng, samp_frac, train_fra
                  train_loss_split_frac, k, dc, results_dir,
                  val_stop_training, num_epochs=100):
                    
-  usMask = utils.undersample_kspace(sMask, rng, samp_frac)
+  usMask = utils.undersample_kspace_gaussian(sMask, rng, samp_frac)
   undersample_mask = np.zeros(sImg)
   undersample_mask[:, left_idx:right_idx] = usMask
   train_mask, val_mask = utils.mask_split(undersample_mask, rng, train_frac)
@@ -198,34 +211,46 @@ def main():
   read in data and decide what to iterate over
   """
   data_dir = '/home/alex/Documents/research/mri/knee_singlecoil_train'
-  results_dir = '/home/alex/Documents/research/mri/results/213_tests'
+  results_dir = '/home/alex/Documents/research/mri/results/brain_unet'
   fnames = glob.glob(data_dir +'/*')
 
-  file_num = 1
-  slice_num = 22
+  # file_num = 1
+  # slice_num = 22
   # here probably pad out to 512?
   # no no pad inside the 
-  with h5py.File(fnames[file_num], 'r') as hf:
-    ks = hf['kspace'][slice_num]
-    w = np.where(np.abs(ks[0, :]) > 0)
-    w = w[0]
-    left_idx = w[0]
-    right_idx = w[-1] + 1
-    ks_mask = ks[:, left_idx:right_idx]
+  # with h5py.File(fnames[file_num], 'r') as hf:
+  #   ks = hf['kspace'][slice_num]
+  #   w = np.where(np.abs(ks[0, :]) > 0)
+  #   w = w[0]
+  #   left_idx = w[0]
+  #   right_idx = w[-1] + 1
+  #   ks_mask = ks[:, left_idx:right_idx]
+
+  import scipy.io as sio
+  # data = sio.loadmat('/home/alex/Documents/research/mri/data/ankle_unet_data.mat')
+  # ks = data['ks']
+
+  data = sio.loadmat('/home/alex/Documents/research/mri/data/brain_p74240_slice76.mat')
+  ks = data['f_ssq']
+  
   
   mval = np.max(np.abs(ks))
   ks /= mval
+  ks = ks.astype('complex64')
   rng = np.random.default_rng(seed=12202024)
   torch.manual_seed(12202024)
-  sMask = ks_mask.shape
+  # sMask = ks_mask.shape
+  sMask = ks.shape
   sImg = ks.shape
+  left_idx = 0
+  right_idx = sImg[1]
 
-  samp_fracs = [0.35, 0.25, 0.15]
-  train_fracs = [0.9, 0.8]
-  train_loss_split_frac = 0.8
-  k_s = [100, 50]
+  samp_fracs = [0.15, 0.1]
+  train_fracs = [0.9]
+  train_loss_split_frac = 0.9
+  k_s = [100]
   dcs = [True, False]
-  val_stop_trainings = [15]
+  val_stop_trainings = [25]
 
   for sf in samp_fracs:
     for tf in train_fracs:
