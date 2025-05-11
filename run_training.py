@@ -116,16 +116,21 @@ def training_loop(training_data, val_data, val_mask, tl_masks,
     ## optional
     # save images at each epoch
     all_data = training_data+val_data
-    out = model(all_data, alldata_mask, alldata_consistency)
+    if data_consistency:
+      out = model(all_data, alldata_mask, alldata_consistency)
+    else:
+      out = model(all_data)
     tstr = f'output_epoch{ep}.png'
 
     out = out.cpu()
     oc = np.squeeze(out.detach().numpy())
+
+    im = math_utils.kspace_to_imspace(oc)
     img_dir = os.path.join(directory, 'imgs/')
 
     if not os.path.isdir(img_dir):
       os.mkdir(img_dir)
-    plt.imsave(os.path.join(img_dir, tstr), np.abs( oc ), cmap='grey')
+    plt.imsave(os.path.join(img_dir, tstr), np.abs( im ), cmap='grey')
 
   plt.plot(tl_ar)
   plt.plot(vl_ar)
@@ -249,7 +254,7 @@ def main():
   train_fracs = [0.9]
   train_loss_split_frac = 0.9
   k_s = [100]
-  dcs = [True, False]
+  dcs = [False]
   val_stop_trainings = [25]
 
   for sf in samp_fracs:

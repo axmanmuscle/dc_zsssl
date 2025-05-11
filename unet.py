@@ -182,16 +182,15 @@ class dc_zs_model(nn.Module):
         # FT back to k-space
         kspace_out = torch.fft.fftshift( torch.fft.fftn( torch.fft.ifftshift( post_unet ) ) )
       
-
-        # data consistency step
-        if mask is not None:
-            kspace_out[:, :, mask > 0] = data
-        else:
-            print('Warning: running the data consistent model without adding in data.')
-
         maxval = torch.max(torch.abs(kspace_out))
         # kspace_out_norm = kspace_out / torch.norm(kspace_out)
         kspace_out_norm = kspace_out / maxval
+
+        # data consistency step
+        if mask is not None:
+            kspace_out_norm[:, :, mask > 0] = data
+        else:
+            print('Warning: running the data consistent model without adding in data.')
 
         return kspace_out_norm
 
