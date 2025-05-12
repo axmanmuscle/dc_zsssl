@@ -250,11 +250,11 @@ def main():
   left_idx = 0
   right_idx = sImg[1]
 
-  samp_fracs = [0.15, 0.1]
-  train_fracs = [0.9]
+  samp_fracs = [0.25]
+  train_fracs = [0.95]
   train_loss_split_frac = 0.9
   k_s = [100]
-  dcs = [False]
+  dcs = [True, False]
   val_stop_trainings = [25]
 
   for sf in samp_fracs:
@@ -265,7 +265,7 @@ def main():
 
             run_training(ks, sImg, sMask, left_idx, right_idx, rng, 
                       sf, tf, train_loss_split_frac, 
-                      k, dc, results_dir, vst, 100)
+                      k, dc, results_dir, vst, 150)
   return 0
   
 if __name__ == "__main__":
